@@ -699,6 +699,76 @@ out:
 /* Common config for 4 cluster system */
 struct smart_freq_cluster_info default_freq_config[MAX_CLUSTERS];
 
+
+static const unsigned int kalama_ipc_freq[3][SMART_FMAX_IPC_MAX] = {
+	{  672000, 1017600, 1459200, 1670400, 2016000 }, /* little */
+	{ 1056000, 1401600, 1785600, 2457600, 2803200 }, /* mid */
+	{ 1248000, 1593600, 2092800, 2592000, 3187200 }, /* big */
+};
+
+#ifdef CONFIG_WALT_SMART_FREQ_AGGRESSIVE
+static const unsigned int kalama_ipc_thres[3][SMART_FMAX_IPC_MAX] = {
+	{  10,  60, 120, 160, 999 }, /* little */
+	{  30,  80, 200, 240, 999 }, /* mid */
+	{  40,  80, 180, 240, 999 }, /* big */
+};
+
+static const unsigned int kalama_ipc_hyst_ms[3][SMART_FMAX_IPC_MAX] = {
+	{ 999, 500, 200,  50, 50 }, /* little */
+	{ 999, 300, 200,  50, 50 }, /* mid */
+	{ 999, 300, 200,  50, 50 }, /* big */
+};
+#else
+static const unsigned int kalama_ipc_thres[3][SMART_FMAX_IPC_MAX] = {
+	{  10,  60, 100, 140, 999 }, /* little */
+	{  30,  60, 140, 200, 999 }, /* mid */
+	{  40,  60, 140, 200, 999 }, /* big */
+};
+
+static const unsigned int kalama_ipc_hyst_ms[3][SMART_FMAX_IPC_MAX] = {
+	{ 999, 500, 200, 100, 50 }, /* little */
+	{ 999, 500, 200, 100, 50 }, /* mid */
+	{ 999, 500, 200, 100, 50 }, /* big */
+};
+#endif
+
+static void smart_freq_config_kalama(struct walt_sched_cluster *cluster)
+{
+	struct smart_freq_cluster_info *s = cluster->smart_freq_info;
+	int id = cluster->id;
+	int i;
+
+	if (id < 0 || id >= ARRAY_SIZE(kalama_ipc_freq))
+		return;
+
+	for (i = 0; i < SMART_FMAX_IPC_MAX; i++) {
+		unsigned int thres = kalama_ipc_thres[id][i];
+		unsigned int freq = kalama_ipc_freq[id][i];
+
+		s->ipc_reason_config[i].ipc = thres;
+		s->ipc_reason_config[i].freq_allowed = freq;
+		s->ipc_reason_config[i].hyst_ns =
+			(u64)kalama_ipc_hyst_ms[id][i] * 1000000ULL;
+
+		if (id == 0) {
+			sysctl_ipc_levels_cluster0[i] = thres;
+			sysctl_ipc_freq_levels_cluster0[i] = freq;
+		} else if (id == 1) {
+			sysctl_ipc_levels_cluster1[i] = thres;
+			sysctl_ipc_freq_levels_cluster1[i] = freq;
+		} else if (id == 2) {
+			sysctl_ipc_levels_cluster2[i] = thres;
+			sysctl_ipc_freq_levels_cluster2[i] = freq;
+		}
+	}
+
+	/* Park NO_REASON on lowest rung so legacy channel does not mask IPC rungs */
+	s->legacy_reason_config[NO_REASON_SMART_FREQ].freq_allowed =
+		kalama_ipc_freq[id][0];
+	s->min_cycles = 1048576;
+	s->smart_freq_ipc_participation_mask = IPC_PARTICIPATION;
+}
+
 void smart_freq_init(const char *name)
 {
 	struct walt_sched_cluster *cluster;
@@ -1121,6 +1191,9 @@ void smart_freq_init(const char *name)
 					BIT(PIPELINE_120FPS_OR_GREATER_SMART_FREQ);
 			}
 		}
+	} else if (!strcmp(name, "KALAMA")) {
+		for_each_sched_cluster(cluster)
+			smart_freq_config_kalama(cluster);
 	}
 
 done:

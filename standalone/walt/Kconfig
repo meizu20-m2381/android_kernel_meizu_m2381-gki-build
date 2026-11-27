@@ -57,3 +57,11 @@ config SCHED_WALT_NR_CPUS
 	  in the system that need to be managed by WALT.
 
 endmenu
+
+config WALT_SMART_FREQ_AGGRESSIVE
+	bool "Use aggressive KALAMA smart_freq IPC thresholds and hysteresis"
+	depends on SCHED_WALT
+	default n
+	help
+	  Select higher IPC thresholds and shorter hysteresis windows for
+	  KALAMA (SM8550) smart_freq frequency capping.

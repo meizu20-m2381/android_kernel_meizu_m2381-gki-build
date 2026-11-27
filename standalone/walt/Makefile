@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 ccflags-y += -I$(srctree) -I$(src)
+ccflags-$(CONFIG_WALT_SMART_FREQ_AGGRESSIVE) += -DCONFIG_WALT_SMART_FREQ_AGGRESSIVE=1
 KCOV_INSTRUMENT := n
 KCSAN_SANITIZE := n
 obj-$(CONFIG_SCHED_WALT) += sched-walt.o
