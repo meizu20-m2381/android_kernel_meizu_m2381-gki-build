@@ -1,0 +1,12 @@
+*.o
+*.ko
+*.cmd
+*.mod
+*.mod.c
+*.img
+*.tar
+*.tar.gz
+__pycache__/
+out/
+stage/
+prebuilt/
