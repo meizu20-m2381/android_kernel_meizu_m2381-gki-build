@@ -1562,6 +1562,14 @@ static void qcom_geni_serial_program_termios(struct uart_port *uport,
 	writel(bits_per_char, uport->membase + SE_UART_TX_WORD_LEN);
 	writel(bits_per_char, uport->membase + SE_UART_RX_WORD_LEN);
 	writel(stop_bit_len, uport->membase + SE_UART_TX_STOP_BIT_LEN);
+
+	/* The hardware gates TX on CTS without reporting CTS changes. */
+	scoped_guard(uart_port_lock_irqsave, uport) {
+		if (termios->c_cflag & CRTSCTS)
+			uport->status |= UPSTAT_AUTOCTS;
+		else
+			uport->status &= ~UPSTAT_AUTOCTS;
+	}
 }
 
 static void qcom_geni_serial_set_termios(struct uart_port *uport,
